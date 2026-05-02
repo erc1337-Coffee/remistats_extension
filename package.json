@@ -1,0 +1,14 @@
+{
+  "name": "remistats-extension",
+  "version": "1.1.0",
+  "description": "Browser extension that displays RemiStats reputation scores on X.com.",
+  "keywords": [
+    "browser-extension",
+    "chrome-extension",
+    "twitter",
+    "x.com",
+    "remilia",
+    "remistats"
+  ],
+  "license": "MIT"
+}

@@ -296,6 +296,50 @@
   z-index: 1;
 }
 
+/* Compact ribbon badge used under DM message avatars */
+.reminet-compact-badge {
+  position: absolute;
+  bottom: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(15, 20, 25, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-family: 'Remilia Mincho', serif;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 9px;
+  border-radius: 9px;
+  cursor: pointer;
+  z-index: 5;
+  white-space: nowrap;
+  pointer-events: auto;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.reminet-compact-badge:hover {
+  background: rgba(15, 20, 25, 1);
+  transform: translateX(-50%) scale(1.05);
+}
+
+.reminet-compact-star {
+  width: 9px;
+  height: 9px;
+  opacity: 0.9;
+  flex-shrink: 0;
+}
+
+.reminet-compact-score {
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+}
+
 /* Animation */
 @keyframes reminet-fade-in {
   from {

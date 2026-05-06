@@ -44,36 +44,65 @@ function debounce(func, wait) {
   };
 }
 
+// Routes that look like usernames in URLs but aren't
+const ROUTE_BLOCKLIST = new Set([
+  'home', 'explore', 'notifications', 'messages', 'settings', 'compose',
+  'search', 'i', 'tos', 'privacy', 'login', 'signup', 'logout', 'about',
+  'jobs', 'lists', 'bookmarks', 'communities', 'topics', 'verified-orgs-signup'
+]);
+
+// Find the first profile-link username inside a container, skipping routes
+// like /messages/<id> that appear in DM cells before the avatar link.
+function findUsernameInLinks(container) {
+  const links = container.querySelectorAll('a[href^="/"]');
+  for (const link of links) {
+    const href = link.getAttribute('href');
+    if (href.includes('/status/')) continue;
+    const match = href.match(/^\/([^\/\?#]+)(?:\/|$)/);
+    if (!match) continue;
+    const candidate = match[1];
+    if (ROUTE_BLOCKLIST.has(candidate)) continue;
+    return candidate;
+  }
+  return null;
+}
+
+// Extract username from X's avatar testid convention: UserAvatar-Container-<username>
+function extractUsernameFromAvatar(container) {
+  const avatar = container.querySelector('[data-testid^="UserAvatar-Container-"]');
+  if (avatar) {
+    const testid = avatar.getAttribute('data-testid');
+    const candidate = testid.replace('UserAvatar-Container-', '').trim();
+    if (candidate && !ROUTE_BLOCKLIST.has(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
 // Extract username from various Twitter/X elements
 function extractUsername(element) {
-  // Try to find username from data attributes
   const userCell = element.closest('[data-testid="UserCell"]');
   const tweet = element.closest('[data-testid="tweet"]');
-  
+  const container = userCell || tweet;
+
   let username = null;
-  
-  if (userCell || tweet) {
-    const container = userCell || tweet;
-    
-    // Look for username link
-    const usernameLink = container.querySelector('a[href^="/"]');
-    if (usernameLink) {
-      const href = usernameLink.getAttribute('href');
-      const match = href.match(/^\/([^\/\?]+)/);
-      if (match && match[1] && !match[1].includes('status')) {
-        username = match[1];
-      }
+
+  if (container) {
+    // Most reliable: X's own avatar testid always has the username baked in
+    username = extractUsernameFromAvatar(container);
+
+    if (!username) {
+      username = findUsernameInLinks(container);
     }
-    
-    // Try data-screen-name attribute (legacy)
+
     if (!username) {
       const screenNameEl = container.querySelector('[data-screen-name]');
       if (screenNameEl) {
         username = screenNameEl.getAttribute('data-screen-name');
       }
     }
-    
-    // Try aria-label
+
     if (!username) {
       const profileLink = container.querySelector('a[aria-label*="@"]');
       if (profileLink) {
@@ -85,7 +114,7 @@ function extractUsername(element) {
       }
     }
   }
-  
+
   return username ? username.replace('@', '') : null;
 }
 
@@ -95,14 +124,29 @@ let maxScore = 1000;
 
 // Process batch of usernames
 async function processBatch(usernames) {
+  const results = {};
+  // Negative cache: every requested handle that isn't in the response is
+  // stored as a "not found" sentinel so we don't refetch it on every
+  // observer tick. Without this, 404s (or unknown users) trigger an
+  // infinite retry loop as the MutationObserver keeps firing.
+  const requested = Array.from(usernames).map(u => u.toLowerCase());
+  const cacheNotFound = () => {
+    const now = Date.now();
+    for (const handle of requested) {
+      if (!scoreCache.has(handle)) {
+        scoreCache.set(handle, { data: null, timestamp: now });
+      }
+    }
+  };
+
   try {
-    const usernamesStr = Array.from(usernames).join(',');
-    const url = `${CONFIG.apiEndpoint}/${usernamesStr}`;
+    const url = `${CONFIG.apiEndpoint}/${Array.from(usernames).join(',')}`;
     const response = await fetch(url);
 
     if (!response.ok) {
       console.error('RemiStats API returned non-OK status:', response.status);
-      return {};
+      cacheNotFound();
+      return results;
     }
 
     const data = await response.json();
@@ -114,24 +158,23 @@ async function processBatch(usernames) {
       const userData = transformApiResponse(data.user);
       const handle = data.user.twitterHandle.toLowerCase();
       scoreCache.set(handle, { data: userData, timestamp: Date.now() });
-      return { [handle]: userData };
+      results[handle] = userData;
     }
 
     if (data.users) {
-      const results = {};
       for (const [handle, user] of Object.entries(data.users)) {
         const userData = transformApiResponse(user);
         const normalized = handle.toLowerCase();
         scoreCache.set(normalized, { data: userData, timestamp: Date.now() });
         results[normalized] = userData;
       }
-      return results;
     }
   } catch (error) {
     console.error('RemiStats API error:', error.message);
   }
 
-  return {};
+  cacheNotFound();
+  return results;
 }
 
 // Transform API response to extension format
@@ -363,6 +406,37 @@ function createScoreBadge(scoreData) {
   return badge;
 }
 
+// Find a sensible anchor element next to which the badge should sit.
+// Order of preference:
+//   1. <time> element (tweets and user cells)
+//   2. [data-testid="User-Name"] (tweets)
+//   3. Any [dir="ltr"][class*="css"] block as a last resort
+function insertBadgeIntoElement(element, badge) {
+  const timeElement = element.querySelector('time');
+  if (timeElement && timeElement.parentElement) {
+    timeElement.parentElement.insertBefore(badge, timeElement.nextSibling);
+    return true;
+  }
+
+  const userNameContainer = element.querySelector('[data-testid="User-Name"]');
+  if (userNameContainer) {
+    const insertPoint = userNameContainer.querySelector('[dir="ltr"]') || userNameContainer;
+    if (insertPoint.parentElement) {
+      insertPoint.parentElement.insertBefore(badge, insertPoint.nextSibling);
+      return true;
+    }
+  }
+
+  const fallback = element.querySelector('[dir="ltr"][class*="css"]');
+  if (fallback && fallback.parentElement) {
+    const insertPoint = fallback.querySelector('[dir="ltr"]') || fallback;
+    insertPoint.parentElement.insertBefore(badge, insertPoint.nextSibling);
+    return true;
+  }
+
+  return false;
+}
+
 // Insert badge into the DOM for tweets and user cells
 async function insertBadge(element) {
   // Check if badge already exists
@@ -395,27 +469,7 @@ async function insertBadge(element) {
     // Remove processing flag since we're about to insert the badge
     element.removeAttribute('data-reminet-processing');
     
-    // Find the timestamp element (e.g., "17s", "5m", "2h")
-    const timeElement = element.querySelector('time');
-    
-    if (timeElement) {
-      // Insert right after the timestamp
-      timeElement.parentElement.insertBefore(badge, timeElement.nextSibling);
-    } else {
-      // Fallback: try to find the user info section
-      let targetContainer = element.querySelector('[data-testid="User-Name"]');
-      
-      if (!targetContainer) {
-        // Fallback: try to find any container with user info
-        targetContainer = element.querySelector('[dir="ltr"][class*="css"]');
-      }
-      
-      if (targetContainer) {
-        // Insert after the username/display name
-        const insertPoint = targetContainer.querySelector('[dir="ltr"]') || targetContainer;
-        insertPoint.parentElement.insertBefore(badge, insertPoint.nextSibling);
-      }
-    }
+    insertBadgeIntoElement(element, badge);
   } catch (error) {
     console.error('Error inserting badge:', error);
     element.removeAttribute('data-reminet-processing');
@@ -515,20 +569,99 @@ async function insertProfileBadge() {
   }
 }
 
+// Compact score-only "ribbon" anchored under sender avatars in group chats.
+function createCompactBadge(scoreData) {
+  const badge = document.createElement('div');
+  badge.className = 'reminet-compact-badge';
+  badge.setAttribute('data-reminet-badge', 'true');
+  badge.setAttribute('data-reminet-compact', 'true');
+
+  const starUrl = chrome.runtime.getURL('star.svg');
+  badge.innerHTML = `
+    <img src="${starUrl}" class="reminet-compact-star" alt="" />
+    <span class="reminet-compact-score">${scoreData.score}</span>
+  `;
+
+  badge.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.open(`https://remilia.net/~${scoreData.username}`, '_blank');
+  });
+
+  return badge;
+}
+
+// Group chats only: URL pattern /i/chat/g<id>. 1-on-1 DMs are ignored.
+function isInGroupChat() {
+  return /^\/i\/chat\/g/.test(location.pathname);
+}
+
+// Avatar links we've already badged. WeakSet so removed nodes get GC'd.
+const processedMessageAvatars = new WeakSet();
+
+// In group chats X renders each sender's avatar as
+// <a href="https://x.com/<handle>"> inside the message bubble. The avatar
+// itself has overflow-hidden, so the ribbon attaches to the parent grid
+// slot (style="grid-area: avatar") to escape clipping.
+async function processGroupChatAvatars() {
+  if (!isInGroupChat()) return;
+
+  const messageList = document.querySelector('[data-testid="dm-message-list"]')
+    || document.querySelector('[data-testid="dm-message-list-container"]');
+  if (!messageList) return;
+
+  const links = messageList.querySelectorAll('a[href]');
+
+  for (const link of links) {
+    if (processedMessageAvatars.has(link)) continue;
+
+    const href = link.getAttribute('href') || '';
+    // Match /handle, https://x.com/handle, https://twitter.com/handle.
+    // Reject anything with a second path segment (status urls, etc.).
+    const match = href.match(/^(?:https?:\/\/(?:twitter|x)\.com)?\/([^\/\?#]+)\/?$/);
+    if (!match) continue;
+
+    const username = match[1];
+    if (!username || ROUTE_BLOCKLIST.has(username)) continue;
+
+    const avatarSlot = link.closest('[style*="grid-area: avatar"]')
+      || link.closest('[data-slot="hover-card-trigger"]')
+      || link.parentElement;
+    if (!avatarSlot) continue;
+    if (avatarSlot.querySelector('[data-reminet-compact]')) continue;
+
+    processedMessageAvatars.add(link);
+
+    try {
+      const scoreData = await fetchUserScore(username);
+      if (!scoreData) continue;
+      if (avatarSlot.querySelector('[data-reminet-compact]')) continue;
+
+      if (getComputedStyle(avatarSlot).position === 'static') {
+        avatarSlot.style.position = 'relative';
+      }
+      avatarSlot.style.overflow = 'visible';
+
+      avatarSlot.appendChild(createCompactBadge(scoreData));
+    } catch (error) {
+      console.error('RemiStats group avatar error:', error);
+    }
+  }
+}
+
 // Process all visible user elements
 async function processUserElements() {
-  // Find all tweet containers
   const tweets = document.querySelectorAll('[data-testid="tweet"]');
   const userCells = document.querySelectorAll('[data-testid="UserCell"]');
-  
+
   const elements = [...tweets, ...userCells];
-  
+
   for (const element of elements) {
     await insertBadge(element);
   }
-  
-  // Also process profile page if we're on one
+
   await insertProfileBadge();
+  await processGroupChatAvatars();
 }
 
 // Observe DOM changes

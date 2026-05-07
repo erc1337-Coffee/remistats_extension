@@ -40,4 +40,4 @@ No other host permissions, no `<all_urls>`.
 
 ## License
 
-MIT. See [LICENSE](./LICENSE).
+See [LICENSE](./LICENSE).

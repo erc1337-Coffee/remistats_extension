@@ -1,6 +1,6 @@
 {
   "name": "remistats-extension",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Browser extension that displays RemiStats reputation scores on X.com.",
   "keywords": [
     "browser-extension",

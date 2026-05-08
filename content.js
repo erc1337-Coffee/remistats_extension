@@ -624,10 +624,12 @@ async function processGroupChatAvatars() {
     const username = match[1];
     if (!username || ROUTE_BLOCKLIST.has(username)) continue;
 
-    const avatarSlot = link.closest('[style*="grid-area: avatar"]')
-      || link.closest('[data-slot="hover-card-trigger"]')
-      || link.parentElement;
+    // Only badge the chat sender's avatar. Embedded post cards (shared
+    // tweets, link previews) also contain author avatar links but lack the
+    // grid-area: avatar wrapper. Reject anything inside such embeds.
+    const avatarSlot = link.closest('[style*="grid-area: avatar"]');
     if (!avatarSlot) continue;
+    if (link.closest('article, [data-testid="tweet"], [data-testid="card.wrapper"]')) continue;
     if (avatarSlot.querySelector('[data-reminet-compact]')) continue;
 
     processedMessageAvatars.add(link);

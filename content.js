@@ -186,9 +186,10 @@ function transformApiResponse(apiUser) {
     score: apiUser.socialCreditScore,
     beetleCount: apiUser.beetles,
     followers: apiUser.friendCount,
-    following: 0,
     pfpProject: apiUser.pfpProject,
-    pfpId: apiUser.pfpId
+    pfpId: apiUser.pfpId,
+    trophyShelves: apiUser.trophyShelves || [],
+    shelfTexture: apiUser.shelfTexture || null
   };
 }
 
@@ -239,21 +240,12 @@ async function fetchUserScore(username) {
   });
 }
 
-// Get color based on score
-function getScoreColor(score) {
-  if (score >= 85) return '#ff6b9d'; // Pink for high scores
-  if (score >= 70) return '#c060ff'; // Purple
-  if (score >= 55) return '#60a5fa'; // Blue
-  return '#94a3b8'; // Gray
-}
-
 // Create score badge element
 function createScoreBadge(scoreData) {
   const badge = document.createElement('div');
   badge.className = 'reminet-score-badge';
   badge.setAttribute('data-reminet-badge', 'true');
   
-  const color = getScoreColor(scoreData.score);
   const beetleCount = scoreData.beetleCount || Math.floor(scoreData.score / 10);
   
   // Get extension URLs for images
@@ -289,6 +281,19 @@ function createScoreBadge(scoreData) {
   
   const pfpInfo = scoreData.pfpProject ? `${scoreData.pfpProject} #${scoreData.pfpId}` : '';
   
+  const shelfTextureUrl = scoreData.shelfTexture
+    ? `data:image/png;base64,${scoreData.shelfTexture}`
+    : null;
+  const trophies = (scoreData.trophyShelves || []).slice(0, 6);
+
+  if (shelfTextureUrl) {
+    tooltip.style.backgroundImage = `url('${shelfTextureUrl}')`;
+    tooltip.style.backgroundSize = 'cover';
+    tooltip.style.backgroundPosition = 'center';
+    tooltip.style.backgroundRepeat = 'no-repeat';
+    tooltip.classList.add('reminet-tooltip--textured');
+  }
+
   tooltip.innerHTML = `
     <div class="reminet-tooltip-header">
       <span class="reminet-tooltip-displayname">${scoreData.displayName || scoreData.username}</span>
@@ -297,6 +302,11 @@ function createScoreBadge(scoreData) {
     ${pfpInfo ? `<div class="reminet-tooltip-pfp">
       ${pfpImageUrl ? `<img src="${pfpImageUrl}" alt="${pfpInfo}" class="pfp-image" onerror="this.style.display='none';" />` : ''}
       <span class="pfp-label">${pfpInfo}</span>
+    </div>` : ''}
+    ${trophies.length > 0 ? `<div class="reminet-trophy-shelf">
+      <div class="reminet-trophy-items">
+        ${trophies.map(url => `<img src="${url}" class="reminet-trophy-item" alt="" onerror="this.style.display='none';" />`).join('')}
+      </div>
     </div>` : ''}
     <div class="reminet-tooltip-metrics">
       <div class="metric">

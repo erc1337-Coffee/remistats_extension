@@ -188,8 +188,6 @@ function transformApiResponse(apiUser) {
     followers: apiUser.friendCount,
     pfpProject: apiUser.pfpProject,
     pfpId: apiUser.pfpId,
-    trophyShelves: apiUser.trophyShelves || [],
-    shelfTexture: apiUser.shelfTexture || null
   };
 }
 
@@ -281,19 +279,6 @@ function createScoreBadge(scoreData) {
   
   const pfpInfo = scoreData.pfpProject ? `${scoreData.pfpProject} #${scoreData.pfpId}` : '';
   
-  const shelfTextureUrl = scoreData.shelfTexture
-    ? `data:image/png;base64,${scoreData.shelfTexture}`
-    : null;
-  const trophies = (scoreData.trophyShelves || []).slice(0, 6);
-
-  if (shelfTextureUrl) {
-    tooltip.style.backgroundImage = `url('${shelfTextureUrl}')`;
-    tooltip.style.backgroundSize = 'cover';
-    tooltip.style.backgroundPosition = 'center';
-    tooltip.style.backgroundRepeat = 'no-repeat';
-    tooltip.classList.add('reminet-tooltip--textured');
-  }
-
   tooltip.innerHTML = `
     <div class="reminet-tooltip-header">
       <span class="reminet-tooltip-displayname">${scoreData.displayName || scoreData.username}</span>
@@ -302,11 +287,6 @@ function createScoreBadge(scoreData) {
     ${pfpInfo ? `<div class="reminet-tooltip-pfp">
       ${pfpImageUrl ? `<img src="${pfpImageUrl}" alt="${pfpInfo}" class="pfp-image" onerror="this.style.display='none';" />` : ''}
       <span class="pfp-label">${pfpInfo}</span>
-    </div>` : ''}
-    ${trophies.length > 0 ? `<div class="reminet-trophy-shelf">
-      <div class="reminet-trophy-items">
-        ${trophies.map(url => `<img src="${url}" class="reminet-trophy-item" alt="" onerror="this.style.display='none';" />`).join('')}
-      </div>
     </div>` : ''}
     <div class="reminet-tooltip-metrics">
       <div class="metric">

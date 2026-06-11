@@ -155,10 +155,6 @@
   z-index: 1;
 }
 
-.reminet-tooltip--textured::before {
-  border-bottom-color: rgba(200, 175, 130, 0.9);
-}
-
 .reminet-tooltip-header {
   display: flex;
   flex-direction: column;
@@ -241,101 +237,6 @@
 .beetle-label strong {
   color: #0f1419;
   font-weight: 700;
-}
-
-/* Textured tooltip: blend overlay on the whole card, panels transparent */
-.reminet-tooltip--textured {
-  background-color: transparent;
-  border-color: rgba(0, 0, 0, 0.18);
-  box-shadow:
-    0 24px 72px rgba(0, 0, 0, 0.4),
-    0 16px 40px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(0, 0, 0, 0.12);
-}
-
-/* Multiply overlay so the texture darkens uniformly — sits behind content */
-.reminet-tooltip--textured::after {
-  display: block;
-  background-image: none;
-  background-color: rgba(210, 195, 170, 0.28);
-  mix-blend-mode: multiply;
-  border-radius: 14px;
-  opacity: 1;
-}
-
-/* Strip section backgrounds so the texture shows through */
-.reminet-tooltip--textured .reminet-tooltip-header,
-.reminet-tooltip--textured .reminet-tooltip-metrics,
-.reminet-tooltip--textured .reminet-tooltip-footer {
-  background: none;
-}
-
-.reminet-tooltip--textured .reminet-tooltip-header {
-  border-bottom: none;
-  padding-bottom: 12px;
-  margin-bottom: 12px;
-}
-
-.reminet-tooltip--textured .reminet-tooltip-footer {
-  border-top: none;
-  padding-top: 12px;
-}
-
-/* Text readable on wood */
-.reminet-tooltip--textured .reminet-tooltip-displayname,
-.reminet-tooltip--textured .metric-label,
-.reminet-tooltip--textured .metric-value,
-.reminet-tooltip--textured .pfp-label {
-  color: #2a1f0e;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
-}
-
-.reminet-tooltip--textured .reminet-tooltip-handle,
-.reminet-tooltip--textured .reminet-tooltip-footer span {
-  color: #5c4a30;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4);
-}
-
-/* PFP box on textured tooltip */
-.reminet-tooltip--textured .reminet-tooltip-pfp {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(0, 0, 0, 0.12);
-}
-
-/* Metric bar track lighter on wood */
-.reminet-tooltip--textured .metric-bar {
-  background: rgba(0, 0, 0, 0.15);
-}
-
-/* Trophy shelf */
-.reminet-trophy-shelf {
-  position: relative;
-  z-index: 1;
-  margin-bottom: 8px;
-  height: 90px;
-}
-
-.reminet-trophy-items {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 100%;
-  padding: 0 16px;
-  box-sizing: border-box;
-}
-
-.reminet-trophy-item {
-  width: 44px;
-  height: 44px;
-  object-fit: contain;
-  flex-shrink: 0;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
-  transition: transform 0.2s ease;
-}
-
-.reminet-trophy-item:hover {
-  transform: scale(1.15);
 }
 
 /* Metrics */
